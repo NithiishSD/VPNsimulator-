@@ -7,40 +7,125 @@
 
 using namespace std;
 
-VPNNode::VPNNode() {
-    ipAddress = "111.222.333.444";
-    Port = 4;
-}
 
+Logger* Logger::instance = nullptr;
 VPNNode::VPNNode(string ip, int port) {
     ipAddress = ip;
     Port = port;
 }
-
-VPNClient::VPNClient(string ip, int port) : VPNNode(ip, port) {
-    encryption=new EncryptionAlgorithm(); // Corrected memory allocation
-}
-
-void VPNClient::connect() {
-    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == INVALID_SOCKET) {
-        cout << "Error: Failed to create socket." << endl;
+void VPNServer::connect() {
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        Logger::getInstance().log("WSAStartup failed.");
         return;
     }
 
+    // Create a socket
+    SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == INVALID_SOCKET) {
+        Logger::getInstance().log("Error: Failed to create socket. Error code: " + std::to_string(WSAGetLastError()));
+        WSACleanup();
+        return;
+    }
+
+    // Set up the server address structure
     sockaddr_in serverAddress;
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(Port);
-    inet_pton(AF_INET, ipAddress.c_str(), &serverAddress.sin_addr);
-
-    if (::connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        cout << "Error: Connection failed!" << endl;
-        closesocket(clientSocket); // Corrected socket closure
+    serverAddress.sin_port = htons(Port); // Use the port variable from the class
+    if (inet_pton(AF_INET, ipAddress.c_str(), &serverAddress.sin_addr) <= 0) {
+        Logger::getInstance().log("Error: Invalid address or address not supported.");
+        closesocket(serverSocket);
+        WSACleanup();
         return;
     }
-    cout << "Connected to VPN server at " << ipAddress << ":" << Port << endl;
-    closesocket(clientSocket); // Corrected socket closure
+
+    // Bind the socket to the server address
+    if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
+        Logger::getInstance().log("Error: Binding failed! Error code: " + std::to_string(WSAGetLastError()));
+        closesocket(serverSocket);
+        WSACleanup();
+        return;
+    }
+
+    // Listen for incoming connections
+    if (listen(serverSocket, 5) < 0) {
+        Logger::getInstance().log("Error: Listening failed! Error code: " + to_string(WSAGetLastError()));
+        closesocket(serverSocket);
+        WSACleanup();
+        return;
+    }
+
+    Logger::getInstance().log("VPN server started at " + ipAddress + ":" + to_string(Port));
+
+    // Accept incoming connections in a loop
+    while (true) {
+        SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
+        if (clientSocket == INVALID_SOCKET) {
+            Logger::getInstance().log("Error: Failed to accept connection. Error code: " + to_string(WSAGetLastError()));
+            continue;
+        }
+
+        // Handle the client connection in a separate thread
+        std::thread clientThread(handleClient, clientSocket);
+        clientThread.detach();
+    }
+
+    // Clean up (this code is unreachable in the current implementation)
+    closesocket(serverSocket);
+    WSACleanup();
 }
+VPNClient::VPNClient(string ip, int Port) : VPNNode(ip, Port) {
+    encryption=new EncryptionAlgorithm(); // Corrected memory allocation
+}
+void VPNClient::connect() {
+    // Initialize Winsock
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        Logger::getInstance().log("WSAStartup failed.");
+        return;
+    }
+
+    // Create a socket
+    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == INVALID_SOCKET) {
+        Logger::getInstance().log("Error: Failed to create socket. Error code: " + std::to_string(WSAGetLastError()));
+        WSACleanup();
+        return;
+    }
+
+    // Set up the server address structure
+    sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(Port); // Use the port variable from the class
+    if (inet_pton(AF_INET, ipAddress.c_str(), &serverAddress.sin_addr) <= 0) {
+        Logger::getInstance().log("Error: Invalid address or address not supported.");
+        closesocket(clientSocket);
+        WSACleanup();
+        return;
+    }
+
+    // Connect to the server
+    if (::connect(clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
+        Logger::getInstance().log("Error: Connection failed! Error code: " + std::to_string(WSAGetLastError()));
+        closesocket(clientSocket);
+        WSACleanup();
+        return;
+    }
+
+    Logger::getInstance().log("Connected to VPN server at " + ipAddress + ":" + std::to_string(Port));
+
+    // Close the socket and clean up Winsock
+    closesocket(clientSocket);
+    WSACleanup();
+}
+void VPNClient::sendData(string data) {
+    cout << "Sending data: " << data << endl;
+}
+void VPNClient::disconnect() {
+    cout << "Disconnecting from VPN server." << endl;
+}
+
 
 void handleClient(SOCKET clientSocket) {
     char buffer[1024] = {0};
@@ -50,36 +135,8 @@ void handleClient(SOCKET clientSocket) {
     }
     closesocket(clientSocket); // Corrected socket closure
 }
-
-void VPNServer::connect() {
-    SOCKET serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket == INVALID_SOCKET) {
-        Logger::getInstance().log("Error: Failed to create socket.");
-        return;
-    }
-
-    sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(Port);
-    inet_pton(AF_INET, ipAddress.c_str(), &serverAddress.sin_addr);
-
-    if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
-        Logger::getInstance().log("Error: Binding failed!");
-        closesocket(serverSocket); // Corrected socket closure
-        return;
-    }
-    listen(serverSocket, 5);
-    Logger::getInstance().log("VPN server started at " + ipAddress + ":" + to_string(Port));
-
-    while (true) {
-        SOCKET clientSocket = accept(serverSocket, nullptr, nullptr);
-        if (clientSocket == INVALID_SOCKET) {
-            Logger::getInstance().log("Error: Failed to accept connection.");
-            continue;
-        }
-        thread clientThread(handleClient, clientSocket);
-        clientThread.detach();
-    }
+void VPNServer::acceptConnection() {
+    cout << "Accepting client connection..." << endl;
 }
 
 void VPNServer::disconnect() {

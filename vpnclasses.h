@@ -1,14 +1,35 @@
+#ifndef vpnclasses_h
+#define vpnclasses_h
+
 #include <iostream>
 #include <string>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <thread>
 #include <fstream>
-#pragma comment(lib, "ws2_32.lib")
-#ifndef vpnclasses.h
-#define vpnclasses.h
+
 
 using namespace std;
+
+class Logger {
+private:
+    static Logger* instance;
+    Logger() {} // Private constructor
+
+public:
+    static Logger& getInstance() {
+        if (!instance) {
+            instance = new Logger();
+        }
+        return *instance;
+    }
+
+    void log(const std::string& message) {
+        std::cout << message << std::endl;
+    }
+};
+
+
 class EncryptionAlgorithm
 {
 
@@ -24,10 +45,10 @@ class VPNNode //to create a vpn node for serverr and client side
         string ipAddress;
         int Port;
     public:
-        VPNNode();
         VPNNode(string,int);
-        virtual void connect();
-        virtual void disconnect();
+        virtual void connect()=0;
+        virtual void disconnect()=0;
+        virtual ~VPNNode(){}
 
 };
 class VPNClient:public VPNNode
@@ -57,20 +78,7 @@ public:
     string encrypt(string data);
     string decrypt(string data);
 };
-class Logger {
-    private:
-        std::ofstream logFile;
-        Logger(){logFile.open("vpnlog.txt", std::ios::app);}
-    public:
-        static Logger& getInstance() {
-        static Logger instance;
-        return instance;
-    }
-    void log(const string& message) {
-        time_t now = time(nullptr);
-        logFile << ctime(&now) << " - " << message <<endl;
-    }
-};
 
+void handleClient(SOCKET);
 #endif
 

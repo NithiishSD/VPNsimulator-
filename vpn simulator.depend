@@ -1,0 +1,22 @@
+# depslib dependency file v1.0
+1742228679 source:c:\users\nithi\documents\oops\vpn simulator\main.cpp
+	<iostream>
+	<string>
+	"vpnclasses.h"
+
+1742705271 c:\users\nithi\documents\oops\vpn simulator\vpnclasses.h
+	<iostream>
+	<string>
+	<winsock2.h>
+	<ws2tcpip.h>
+	<thread>
+	<fstream>
+
+1742705030 source:c:\users\nithi\documents\oops\vpn simulator\coreclasses.cpp
+	<iostream>
+	<string>
+	<openssl/thread.h>
+	<winsock2.h>
+	<ws2tcpip.h>
+	"vpnclasses.h"
+

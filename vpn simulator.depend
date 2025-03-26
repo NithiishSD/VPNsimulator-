@@ -4,13 +4,18 @@
 	<iostream>
 	<string>
 
-1742711266 c:\users\nithi\documents\oops\vpn simulator\vpnclasses.h
+1742747398 c:\users\nithi\documents\oops\vpn simulator\vpnclasses.h
 	<iostream>
 	<string>
 	<winsock2.h>
 	<ws2tcpip.h>
 	<thread>
 	<fstream>
+	<vector>
+	<openssl/aes.h>
+	<openssl/rand.h>
+	<mapi.h>
+	<limits.h>
 
 1742710714 source:c:\users\nithi\documents\oops\vpn simulator\coreclasses.cpp
 	<iostream>

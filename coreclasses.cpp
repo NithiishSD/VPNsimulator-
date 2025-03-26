@@ -67,7 +67,7 @@ void VPNServer::connect() {
         }
 
         // Handle the client connection in a separate thread
-        std::thread clientThread(handleClient, clientSocket);
+        thread clientThread(handleClient, clientSocket);
         clientThread.detach();
     }
 
@@ -142,7 +142,10 @@ void VPNServer::acceptConnection() {
 void VPNServer::disconnect() {
     Logger::getInstance().log("VPN server stopped.");
 }
-
+void VPNServer::handleClient(int clientId) {
+    std::lock_guard<std::mutex> lock(mtx);
+    Logger::getInstance().log("Client " + std::to_string(clientId) + " connected.");
+}
 string AESEncryption::encrypt(string data) {
     // Simulate AES encryption
     return "AES_Encrypted_" + data;
@@ -151,4 +154,42 @@ string AESEncryption::encrypt(string data) {
 string AESEncryption::decrypt(string data) {
     // Simulate AES decryption
     return data.substr(14);
+}
+
+void Router::bellmanFord(const std::string& source) {
+    std::map<std::string, int> distance;
+    for (const auto& node : graph) {
+        distance[node.first] = std::numeric_limits<int>::max();
+    }
+    distance[source] = 0;
+
+    // Relax edges repeatedly
+    for (size_t i = 0; i < graph.size() - 1; ++i) {
+        for (const auto& u : graph) {
+            for (const auto& v : u.second) {
+                if (distance[u.first] != std::numeric_limits<int>::max() && distance[u.first] + v.second < distance[v.first]) {
+                    distance[v.first] = distance[u.first] + v.second;
+                    routingTable[v.first] = u.first;
+                }
+            }
+        }
+    }
+}
+
+void Router::addEdge(const std::string& source, const std::string& destination, int cost) {
+    graph[source][destination] = cost;
+}
+
+void Router::buildRoutingTable(const std::string& source) {
+    bellmanFord(source);
+}
+
+void Router::printRoutingTable() {
+    for (const auto& route : routingTable) {
+        Logger::getInstance().log("Destination: " + route.first + " -> Next Hop: " + route.second);
+    }
+}
+
+std::string Router::getNextHop(const std::string& destination) {
+    return routingTable.count(destination) ? routingTable[destination] : "No route found";
 }
